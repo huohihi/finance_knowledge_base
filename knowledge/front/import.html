@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>金融知识库 · 文档导入</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; background: #f5f7fa; color: #1f2d3d; }
+  .header { background: linear-gradient(135deg, #1a2a6c, #2e5aac); color: #fff; padding: 20px 32px; }
+  .header h1 { font-size: 22px; }
+  .header p { font-size: 13px; opacity: .85; margin-top: 4px; }
+  .wrap { max-width: 900px; margin: 24px auto; padding: 0 16px; }
+  .card { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,.06); margin-bottom: 20px; }
+  .drop { border: 2px dashed #c0ccda; border-radius: 10px; padding: 36px; text-align: center; cursor: pointer; transition: .2s; }
+  .drop:hover, .drop.drag { border-color: #2e5aac; background: #f0f5ff; }
+  .drop .icon { font-size: 40px; }
+  .drop .tip { color: #8a99ac; font-size: 14px; margin-top: 8px; }
+  .btn { display: inline-block; background: #2e5aac; color: #fff; border: none; border-radius: 8px; padding: 10px 28px; font-size: 15px; cursor: pointer; margin-top: 16px; }
+  .btn:disabled { background: #a8bcd8; cursor: not-allowed; }
+  .fileinfo { margin-top: 12px; font-size: 13px; color: #47586c; }
+  .task-box { margin-top: 16px; }
+  .task-head { display: flex; justify-content: space-between; align-items: center; }
+  .status { font-size: 13px; padding: 4px 12px; border-radius: 20px; background: #e6eefb; color: #2e5aac; }
+  .status.failed { background: #fde8e8; color: #d03050; }
+  .status.done { background: #e6f7ec; color: #18a058; }
+  .steps { margin-top: 16px; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+  .step { padding: 12px; border-radius: 8px; background: #f6f8fb; border: 1px solid #e8edf3; font-size: 13px; display: flex; align-items: center; gap: 8px; }
+  .step .dot { width: 8px; height: 8px; border-radius: 50%; background: #c0ccda; flex-shrink: 0; }
+  .step.running { background: #fff7e6; border-color: #f5c46b; }
+  .step.running .dot { background: #f0a020; animation: blink 1s infinite; }
+  .step.done { background: #e6f7ec; border-color: #8fd9b0; }
+  .step.done .dot { background: #18a058; }
+  @keyframes blink { 50% { opacity: .3; } }
+  .duration { margin-left: auto; font-size: 11px; color: #8a99ac; }
+  .log { margin-top: 16px; background: #0f1e33; color: #9fd8b0; font-family: Consolas, monospace; font-size: 12px; border-radius: 8px; padding: 14px; max-height: 260px; overflow-y: auto; display: none; }
+  .support { font-size: 12px; color: #8a99ac; margin-top: 14px; line-height: 1.8; }
+  a.link { color: #2e5aac; text-decoration: none; font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>📚 金融知识库 · 文档导入</h1>
+  <p>支持 PDF / Markdown 金融资料导入（产品说明书、基金招募说明书、风险揭示书、公告、FAQ、研报…），上传后自动完成解析、切片、元数据抽取与向量入库。</p>
+</div>
+<div class="wrap">
+  <div class="card">
+    <div class="drop" id="drop">
+      <div class="icon">📄</div>
+      <div class="tip">点击选择文件 或 拖拽文件到此处</div>
+      <input type="file" id="fileInput" accept=".pdf,.md" style="display:none">
+    </div>
+    <div class="fileinfo" id="fileInfo"></div>
+    <button class="btn" id="uploadBtn" disabled>开始导入</button>
+    <div class="support">支持格式：PDF、Markdown（.md）｜ 单个文件一次上传，批量导入将陆续开放。</div>
+  </div>
+
+  <div class="card task-box" id="taskBox" style="display:none">
+    <div class="task-head">
+      <span style="font-weight:600">📦 导入任务</span>
+      <span class="status" id="taskStatus">准备中</span>
+    </div>
+    <div class="steps" id="steps"></div>
+    <div class="log" id="log"></div>
+  </div>
+
+  <div style="text-align:center">
+    <a class="link" href="/chat">→ 前往金融问答体验</a>
+  </div>
+</div>
+
+<script>
+const drop = document.getElementById('drop');
+const fileInput = document.getElementById('fileInput');
+const fileInfo = document.getElementById('fileInfo');
+const uploadBtn = document.getElementById('uploadBtn');
+let selectedFile = null;
+let taskId = null;
+
+drop.addEventListener('click', () => fileInput.click());
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('drag'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('drag'));
+drop.addEventListener('drop', e => {
+  e.preventDefault(); drop.classList.remove('drag');
+  if (e.dataTransfer.files.length) setFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', () => { if (fileInput.files.length) setFile(fileInput.files[0]); });
+
+function setFile(f) {
+  selectedFile = f;
+  fileInfo.textContent = `已选择：${f.name}（${(f.size/1024).toFixed(1)} KB）`;
+  uploadBtn.disabled = false;
+}
+
+uploadBtn.addEventListener('click', async () => {
+  if (!selectedFile) return;
+  uploadBtn.disabled = true;
+  const fd = new FormData();
+  fd.append('file', selectedFile);
+  try {
+    const resp = await fetch('/upload', { method: 'POST', body: fd });
+    const data = await resp.json();
+    taskId = data.task_id;
+    document.getElementById('taskBox').style.display = 'block';
+    document.getElementById('taskStatus').textContent = '处理中…';
+    log(`任务已创建: ${taskId}`);
+    pollStatus(taskId);
+  } catch (err) {
+    document.getElementById('taskStatus').textContent = '上传失败';
+    log(`上传失败: ${err.message}`);
+    uploadBtn.disabled = false;
+  }
+});
+
+async function pollStatus(id) {
+  const stepsEl = document.getElementById('steps');
+  const statusEl = document.getElementById('taskStatus');
+  const poll = async () => {
+    const resp = await fetch(`/status/${id}`);
+    const info = await resp.json();
+    const allSteps = [...(info.done_list||[]), ...(info.running_list||[])];
+    if (!allSteps.length) return true;   // 尚未有节点，继续轮询
+
+    stepsEl.innerHTML = '';
+    const seen = new Set();
+    [...(info.done_list||[]), ...(info.running_list||[])].forEach((name, i) => {
+      if (seen.has(name)) return; seen.add(name);
+      const div = document.createElement('div');
+      div.className = 'step ' + ((info.running_list||[]).includes(name) ? 'running' : 'done');
+      div.innerHTML = `<span class="dot"></span>${name}`;
+      const durs = info.durations||{};
+      if (durs[name]) div.innerHTML += `<span class="duration">${durs[name]}s</span>`;
+      stepsEl.appendChild(div);
+    });
+
+    if (info.status === 'completed') {
+      statusEl.textContent = '导入完成 ✅'; statusEl.className = 'status done';
+      log('✅ 全部节点执行完成，文档已入库。');
+      uploadBtn.disabled = false;
+      return false;
+    }
+    if (info.status === 'failed') {
+      statusEl.textContent = '导入失败 ❌'; statusEl.className = 'status failed';
+      log('❌ 导入失败，请检查文档格式后重试。');
+      uploadBtn.disabled = false;
+      return false;
+    }
+    return true;
+  };
+  const timer = setInterval(async () => {
+    try { if (!(await poll())) clearInterval(timer); }
+    catch (err) { clearInterval(timer); statusEl.textContent = '查询失败'; uploadBtn.disabled = false; }
+  }, 1200);
+}
+
+function log(msg) {
+  const el = document.getElementById('log');
+  el.style.display = 'block';
+  const line = document.createElement('div');
+  const now = new Date().toTimeString().slice(0,8);
+  line.textContent = `[${now}] ${msg}`;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+</script>
+</body>
+</html>

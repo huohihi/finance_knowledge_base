@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>金融知识库 · 智能问答</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; background: #f5f7fa; height: 100vh; display: flex; flex-direction: column; color: #1f2d3d; }
+  .header { background: linear-gradient(135deg, #0f2027, #2e5aac 60%, #4776E6); color: #fff; padding: 16px 28px; display: flex; justify-content: space-between; align-items: center; }
+  .header h1 { font-size: 20px; }
+  .header .sub { font-size: 12px; opacity: .8; }
+  .header .btns a { color:#fff; text-decoration:none; font-size:13px; margin-left:16px; opacity:.9; }
+  .chat { flex: 1; overflow-y: auto; padding: 20px 0; }
+  .inner { max-width: 860px; margin: 0 auto; padding: 0 16px; }
+  .msg { margin-bottom: 18px; display: flex; flex-direction: column; }
+  .msg .role { font-size: 12px; color: #8a99ac; margin-bottom: 4px; }
+  .msg .bubble { max-width: 100%; padding: 12px 16px; border-radius: 10px; font-size: 14px; line-height: 1.75; white-space: pre-wrap; word-break: break-word; }
+  .msg.user .bubble { background: #eef4ff; border: 1px solid #d6e4ff; align-self: flex-end; }
+  .msg.assistant .bubble { background: #fff; border: 1px solid #e6eaf0; box-shadow: 0 1px 4px rgba(0,0,0,.04); }
+  .msg.assistant .bubble.markdown h1,.msg.assistant .bubble.markdown h2,.msg.assistant .bubble.markdown h3 { margin: 10px 0 6px; font-size: 16px; }
+  .msg.assistant .bubble.markdown ul,.msg.assistant .bubble.markdown ol { padding-left: 22px; }
+  .msg.assistant .bubble.markdown p { margin: 4px 0; }
+  .msg.assistant .bubble.markdown table { border-collapse: collapse; margin: 6px 0; }
+  .msg.assistant .bubble.markdown td,.msg.assistant .bubble.markdown th { border: 1px solid #d8dee6; padding: 4px 10px; font-size: 13px; }
+  .status-line { font-size: 12px; color: #8a99ac; padding: 2px 16px; }
+  .status-line .proc { color: #2e5aac; }
+  .citations { margin-top: 10px; border-top: 1px dashed #e0e6ee; padding-top: 8px; }
+  .citations .cit-title { font-size: 12px; font-weight: 700; color: #2e5aac; margin-bottom: 4px; }
+  .cit-item { font-size: 12px; color: #47586c; line-height: 1.7; background:#f8fafc; border:1px solid #edf1f6; border-radius:6px; padding:6px 10px; margin-bottom:4px; }
+  .cit-item b { color:#1f2d3d; }
+  .inputbar { border-top: 1px solid #e4e9f0; background: #fff; padding: 12px 0 16px; }
+  .inner-in { max-width: 860px; margin: 0 auto; padding: 0 16px; display: flex; gap: 10px; align-items: flex-end; }
+  textarea { flex: 1; border: 1px solid #cdd7e3; border-radius: 10px; padding: 10px 12px; font-size: 14px; resize: none; outline: none; min-height: 44px; line-height: 1.5; font-family: inherit; }
+  textarea:focus { border-color: #2e5aac; }
+  .send { background: #2e5aac; color: #fff; border: none; border-radius: 10px; padding: 10px 20px; cursor: pointer; font-size: 14px; }
+  .send:disabled { background: #a8bcd8; cursor: not-allowed; }
+  .bar-tools { max-width:860px; margin:6px auto 0; padding:0 16px; display:flex; gap:10px; font-size:12px; color:#8a99ac; }
+  .bar-tools label { cursor: pointer; display:flex; align-items:center; gap:4px; }
+  .bar-tools a { color:#8a99ac; margin-left:auto; text-decoration:none; }
+  .typing { color:#8a99ac; font-style: italic; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div>
+    <h1>💰 金融知识库 · 智能问答</h1>
+    <div class="sub">本系统仅用于金融知识查询与资料解读，不构成投资建议</div>
+  </div>
+  <div class="btns">
+    <a href="javascript:void(0)" onclick="clearHistory()">🗑 清空历史</a>
+    <a href="/import">📥 导入文档</a>
+  </div>
+</div>
+
+<div class="chat" id="chat">
+  <div class="inner">
+    <div class="msg assistant"><div class="role">金融知识库助手</div>
+      <div class="bubble">您好！我是金融知识库助手，可以帮您查询：
+• 金融产品：介绍 XX 基金 / XX 理财产品的风险等级、投向、申赎规则
+• 金融知识：什么是基金净值、最大回撤、净值型理财
+• 风险提示：这个产品有哪些风险、R3 是什么含义
+• 公告与资讯：某公告主要讲了什么、某行业观点
+• 业务规则：赎回多久到账、如何申购基金
+
+请直接输入您的问题，例如：“帮我介绍一下 XX 基金”。</div></div>
+  </div>
+</div>
+
+<div class="status-line" id="statusLine"></div>
+
+<div class="inputbar">
+  <div class="bar-tools">
+    <label><input type="checkbox" id="streamCk" checked> 流式输出</label>
+    <span id="sessionLabel"></span>
+    <a href="javascript:void(0)" onclick="newSession()">🔄 新会话</a>
+  </div>
+  <div class="inner-in">
+    <textarea id="input" placeholder="请输入您的金融问题，Enter 发送，Shift+Enter 换行…"></textarea>
+    <button class="send" id="sendBtn" onclick="send()">发送</button>
+  </div>
+</div>
+
+<script>
+let sessionId = localStorage.getItem('fin_session') || '';
+let taskId = null;
+let busy = false;
+
+function ensureSession() {
+  if (!sessionId) { sessionId = genId(); localStorage.setItem('fin_session', sessionId); }
+  document.getElementById('sessionLabel').textContent = '会话：' + sessionId.slice(0,8);
+}
+function genId() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random()*16|0, v = c==='x'?r:(r&0x3|0x8); return v.toString(16);
+  });
+}
+ensureSession();
+
+const input = document.getElementById('input');
+const sendBtn = document.getElementById('sendBtn');
+const chat = document.getElementById('chat');
+const statusLine = document.getElementById('statusLine');
+
+input.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+});
+
+async function send() {
+  const q = input.value.trim();
+  if (!q || busy) return;
+  input.value = '';
+  busy = true; sendBtn.disabled = true;
+  appendMsg('user', q);
+  const assistantBubble = appendMsg('assistant', '', true);
+
+  const isStream = document.getElementById('streamCk').checked;
+  const st = setInterval(() => {  /* 心跳防止空闲 */ }, 500);
+
+  try {
+    const resp = await fetch('/query', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ query: q, session_id: sessionId, is_stream: isStream }),
+    });
+    const data = await resp.json();
+
+    if (isStream) {
+      taskId = data.task_id;
+      setStatus('等待回答…');
+      await consumeSSE(taskId, assistantBubble);
+    } else {
+      setStatus('生成中…');
+      assistantBubble.textContent = data.answer || '（无回答）';
+      if (data.citations && data.citations.length) renderCitations(assistantBubble, data.citations);
+      setStatus('');
+    }
+  } catch (err) {
+    assistantBubble.textContent = '请求失败：' + err.message;
+    setStatus('');
+  } finally {
+    clearInterval(st);
+    busy = false; sendBtn.disabled = false;
+    chat.scrollTop = chat.scrollHeight;
+  }
+}
+
+async function consumeSSE(taskId, bubble) {
+  setStatus('连接 SSE…');
+  const es = new EventSource(`/stream/${taskId}`);
+  let finalArrived = false;
+
+  return new Promise(resolve => {
+    es.addEventListener('progress', ev => {
+      const d = JSON.parse(ev.data);
+      const done = (d.done_list||[]).join(' → ');
+      const running = (d.running_list||[]).join('、');
+      setStatus(running ? `正在执行：${running}${done? ' ｜ 已完成：'+done:''}` : '处理中…');
+    });
+    es.addEventListener('delta', ev => {
+      const d = JSON.parse(ev.data);
+      bubble.textContent += (d.delta || '');
+      chat.scrollTop = chat.scrollHeight;
+    });
+    es.addEventListener('final', ev => {
+      const d = JSON.parse(ev.data);
+      finalArrived = true;
+      if (d.answer && !bubble.textContent) bubble.textContent = d.answer;
+      if (d.citations && d.citations.length) renderCitations(bubble, d.citations);
+      setStatus('✅ 回答完成');
+      es.close(); resolve();
+    });
+    es.onerror = () => {
+      if (!finalArrived) { setStatus('连接中断，尝试重新加载…'); }
+      es.close(); resolve();
+    };
+  });
+}
+
+function renderCitations(bubble, citations) {
+  if (bubble.querySelector('.citations')) return;
+  const box = document.createElement('div');
+  box.className = 'citations';
+  let html = '<div class="cit-title">📎 引用来源</div>';
+  citations.forEach((c, i) => {
+    html += `<div class="cit-item"><b>${i+1}. ${c.document_title || '未命名资料'}</b>` +
+      (c.product_name ? ` ｜ 产品：${c.product_name}` : '') +
+      (c.product_code ? `（${c.product_code}）` : '') +
+      (c.content_type ? ` ｜ 类型：${c.content_type}` : '') +
+      (c.risk_level ? ` ｜ 风险：${c.risk_level}` : '') +
+      (c.publish_date ? ` ｜ 发布：${c.publish_date}` : '') +
+      (c.source_file ? `<br>来源文件：${c.source_file}` : '') +
+      (c.title ? `<br>章节：${c.title}` : '') + '</div>';
+  });
+  box.innerHTML = html;
+  bubble.appendChild(box);
+}
+
+function appendMsg(role, text, streamReady = false) {
+  const wrap = document.createElement('div');
+  wrap.className = 'msg ' + role;
+  const roleName = role === 'user' ? '我' : '金融知识库助手';
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  if (role === 'assistant' && !streamReady) bubble.classList.add('markdown');
+  if (role === 'user') {
+    const div = document.createElement('div'); div.className='bubble'; div.textContent = text;
+    wrap.innerHTML = `<div class="role">${roleName}</div>`;
+    wrap.appendChild(div);
+  } else {
+    wrap.innerHTML = `<div class="role">${roleName}</div>`;
+    bubble.textContent = streamReady ? '' : text;
+    wrap.appendChild(bubble);
+    if (streamReady) {
+      const tip = document.createElement('div'); tip.className='typing'; tip.id='typingTip'; tip.textContent='正在思考…';
+      wrap.appendChild(tip);
+      setTimeout(() => { const t = document.getElementById('typingTip'); if (t) t.remove(); }, 2000);
+    }
+  }
+  document.querySelector('.inner').appendChild(wrap);
+  chat.scrollTop = chat.scrollHeight;
+  return bubble;
+}
+
+function setStatus(txt) {
+  statusLine.textContent = txt || '';
+  if (txt) statusLine.classList.add('proc'); else statusLine.classList.remove('proc');
+}
+
+function newSession() {
+  sessionId = genId(); localStorage.setItem('fin_session', sessionId);
+  ensureSession();
+  document.querySelector('.inner').innerHTML =
+    '<div class="msg assistant"><div class="role">金融知识库助手</div><div class="bubble">已开启新会话，请输入问题。</div></div>';
+}
+
+async function clearHistory() {
+  if (!confirm('确定清空当前会话的全部历史记录吗？')) return;
+  try {
+    await fetch(`/history/${sessionId}`, { method: 'DELETE' });
+    alert('历史已清空');
+  } catch (e) { alert('清空失败'); }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,37 @@
+# ==================== Web 框架 ====================
+fastapi>=0.111.0
+uvicorn[standard]>=0.30.0
+python-multipart>=0.0.9
+sse-starlette>=2.0.0
+
+# ==================== LangGraph 工作流 ====================
+langgraph>=0.2.0
+langchain-core>=0.3.0
+langchain-openai>=0.2.0
+langchain-text-splitters>=0.3.0
+
+# ==================== 向量 / 数据库 ====================
+# 注意：BGE-M3 的 BGEM3EmbeddingFunction 位于 pymilvus.model.hybrid，
+# 需要安装 pymilvus[model] extra（会拉入模型推理依赖）；3.x 已剥离 model
+# 子模块且不兼容，故锁定 2.x
+pymilvus[model]>=2.4.0,<3.0.0
+pymongo>=4.8.0
+minio>=7.2.0
+
+# ==================== 模型 ====================
+FlagEmbedding>=1.2.11          # BGE reranker（交叉编码器）
+
+# ==================== 文档解析 ====================
+# PDF 转 Markdown 使用 MinerU 独立 CLI：pip install mineru（体积较大，独立安装）
+beautifulsoup4>=4.12.0
+
+# ==================== 可选：联网搜索（DashScope MCP）====================
+# query_process 的 web_search_mcp 节点使用；未安装时该节点安全降级为空结果，
+# 本地知识库检索不受影响。需要实时资讯补全时再安装：
+#   pip install "openai-agents>=0.0.10"
+# openai-agents>=0.0.10
+
+# ==================== 通用 ====================
+python-dotenv>=1.0.0
+openai>=1.30.0
+pydantic>=2.7.0
