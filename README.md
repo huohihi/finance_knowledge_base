@@ -64,3 +64,5 @@ finance_knowledge_base/
     ├── services/       业务服务（上传导入 / 问答调度）
     └── utils/          客户端管理器、混合检索、SSE、任务追踪等工具
 ```
+<img width="1912" height="1068" alt="fa77c4bb-04ff-4fae-9033-087b9467060d" src="https://github.com/user-attachments/assets/cf04f453-b811-49b0-a1c7-b51b01a28790" />
+<img width="1912" height="1068" alt="c6aaacef-1efa-4f77-a736-4082b475dc01" src="https://github.com/user-attachments/assets/bf3eccce-50c1-41c4-a6b1-a2472e3e35e3" />
